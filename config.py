@@ -22,15 +22,18 @@ LIGHT_GRAY = (180, 180, 180)
 # States
 MAIN_MENU = "MAIN_MENU"
 GAMES_MENU = "GAMES_MENU"
-BUBBLE_POP = "BUBBLE_POP"
-ANIMAL_SOUNDS = "ANIMAL_SOUNDS"
-WHACK_A_CRITTER = "WHACK_A_CRITTER"
+FINGER_PAINT = "FINGER_PAINT"
+SHAPE_SORTER = "SHAPE_SORTER"
+MAGIC_GARDEN = "MAGIC_GARDEN"
+FIREWORKS = "FIREWORKS"
+PARTICLE_PLAYGROUND = "PARTICLE_PLAYGROUND"
+WEATHER_TOY = "WEATHER_TOY"
 SHOWS = "SHOWS"
 REMOTE = "REMOTE"
 VIDEOS = "VIDEOS"
 
 # Back button
-BACK_BTN_SIZE = 60
+BACK_BTN_SIZE = 80
 BACK_BTN_MARGIN = 15
 
 # Show data: (name, channel_id, content_id, media_type, bg_color, image_file or None)
@@ -50,18 +53,6 @@ SHOWS_DATA = [
     ("Tarzan",          291097, "6246ebb7-7e52-4767-974c-5da108c6644f", "movie",  (34, 120, 15),   None),
 ]
 
-# Animal data for Animal Sounds game: (name, color, face_color)
-ANIMALS = [
-    ("Cow",    (80, 80, 80),    (240, 240, 240)),
-    ("Dog",    (160, 100, 50),  (200, 160, 100)),
-    ("Cat",    (255, 165, 0),   (255, 210, 150)),
-    ("Lion",   (210, 160, 40),  (240, 200, 100)),
-    ("Frog",   (50, 180, 50),   (100, 220, 100)),
-    ("Bird",   (80, 160, 255),  (150, 210, 255)),
-    ("Monkey", (140, 80, 30),   (210, 160, 100)),
-    ("Pig",    (255, 150, 170), (255, 200, 210)),
-    ("Duck",   (255, 220, 50),  (255, 180, 0)),
-]
 
 # Curated YouTube videos: (title, youtube_video_id, bg_color)
 # To add a video: go to youtube.com, find the video, copy the ID from the URL
@@ -74,14 +65,4 @@ VIDEOS_DATA = [
 ]
 
 # Sound hooks — uncomment and set paths when audio hardware is connected
-# ANIMAL_SOUNDS = {
-#     "Cow":    "assets/sounds/cow.wav",
-#     "Dog":    "assets/sounds/dog.wav",
-#     "Cat":    "assets/sounds/cat.wav",
-#     "Lion":   "assets/sounds/lion.wav",
-#     "Frog":   "assets/sounds/frog.wav",
-#     "Bird":   "assets/sounds/bird.wav",
-#     "Monkey": "assets/sounds/monkey.wav",
-#     "Pig":    "assets/sounds/pig.wav",
-#     "Duck":   "assets/sounds/duck.wav",
-# }
+# SOUNDS = {}

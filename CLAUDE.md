@@ -26,10 +26,13 @@ ui.py                — Shared UI: draw_button(), draw_back_button(), draw_card
 roku.py              — Roku HTTP helper (urllib, threaded fire-and-forget)
 screens/
   main_menu.py       — "AVA" title + PLAY GAMES / WATCH SHOWS buttons
-  games_menu.py      — 3 game cards grid
-  bubble_pop.py      — Bubble-popping game (tap to pop + respawn)
-  animal_sounds.py   — 3x3 animal tap grid with bounce/particle animations
-  whack_a_critter.py — Whack-a-mole: 45s rounds, scoring, celebration
+  games_menu.py          — 2x3 game cards grid
+  finger_paint.py        — Free-draw canvas with palette, brushes, stamps
+  shape_sorter.py        — Drag 5 shapes to matching cutouts
+  magic_garden.py        — Tap to plant flowers, trees, butterflies, bees
+  fireworks.py           — Tap to launch rockets that explode into particles
+  particle_playground.py — Performance showcase: 2500 particles, 4 modes
+  weather_toy.py         — 5 weather scenes (snow, rain, fireflies, blossoms, aurora)
   shows.py           — 2-column paginated show cards, Roku deep-link launch
   remote.py          — D-pad + Home/Back/Play-Pause, Roku keypress
 assets/
@@ -39,9 +42,12 @@ assets/
 ### Navigation Flow
 
 ```
-MAIN_MENU  ──►  GAMES_MENU  ──►  BUBBLE_POP
-                             ──►  ANIMAL_SOUNDS
-                             ──►  WHACK_A_CRITTER
+MAIN_MENU  ──►  GAMES_MENU  ──►  FINGER_PAINT
+                             ──►  SHAPE_SORTER
+                             ──►  MAGIC_GARDEN
+                             ──►  FIREWORKS
+                             ──►  PARTICLE_PLAYGROUND
+                             ──►  WEATHER_TOY
            ──►  SHOWS       ──►  REMOTE
 ```
 
@@ -92,6 +98,5 @@ MAIN_MENU  ──►  GAMES_MENU  ──►  BUBBLE_POP
 ## Enabling Sound
 
 When audio hardware is connected:
-1. Uncomment `ANIMAL_SOUNDS` dict in `config.py` and set correct `.wav` paths
-2. Uncomment the sound playback block in `screens/animal_sounds.py` `_tap_animal()`
-3. Add `pygame.mixer.init()` in `main.py` before the game loop
+1. Uncomment `SOUNDS` dict in `config.py` and set correct `.wav` paths
+2. Add `pygame.mixer.init()` in `main.py` before the game loop

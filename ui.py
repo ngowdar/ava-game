@@ -56,6 +56,27 @@ def draw_wrapped_text(surface, text, font, color, center_x, center_y, max_width)
         surface.blit(text_surf, text_rect)
 
 
+def hsv_to_rgb(h, s, v):
+    """Convert HSV (h: 0-360, s: 0-1, v: 0-1) to RGB tuple (0-255)."""
+    h = h % 360
+    c = v * s
+    x = c * (1 - abs((h / 60) % 2 - 1))
+    m = v - c
+    if h < 60:
+        r, g, b = c, x, 0
+    elif h < 120:
+        r, g, b = x, c, 0
+    elif h < 180:
+        r, g, b = 0, c, x
+    elif h < 240:
+        r, g, b = 0, x, c
+    elif h < 300:
+        r, g, b = x, 0, c
+    else:
+        r, g, b = c, 0, x
+    return (int((r + m) * 255), int((g + m) * 255), int((b + m) * 255))
+
+
 def darken(color, amount=40):
     """Return a darker version of a color."""
     return tuple(max(0, c - amount) for c in color[:3])
@@ -230,3 +251,115 @@ class PressTracker:
             return 1.0 - 0.06 * (progress / 0.4)
         else:
             return 0.94 + 0.06 * ((progress - 0.4) / 0.6)
+
+
+class ScrollToolbar:
+    """Horizontally scrollable toolbar for button strips that exceed screen width.
+
+    Usage:
+        toolbar = ScrollToolbar(left_x=110, y=10, height=60, btn_width=130,
+                                btn_gap=8, btn_count=5)
+        # In handle_event: toolbar.handle_event(event)
+        # In update:       toolbar.update(dt)
+        # In draw:         toolbar.draw_begin(surface) -> draw buttons -> toolbar.draw_end(surface)
+        # Hit test:        toolbar.get_btn_at(pos) -> index or -1
+    """
+
+    def __init__(self, left_x, y, height, btn_width, btn_gap, btn_count):
+        self.left_x = left_x
+        self.y = y
+        self.height = height
+        self.btn_width = btn_width
+        self.btn_gap = btn_gap
+        self.btn_count = btn_count
+        self.scroll_x = 0.0
+        self._dragging = False
+        self._drag_start_x = 0
+        self._drag_start_scroll = 0.0
+        self._velocity = 0.0
+        self._last_mx = 0
+        self._was_drag = False  # true if finger moved enough to be a drag, not a tap
+
+        total_content = btn_count * btn_width + (btn_count - 1) * btn_gap
+        visible = WIDTH - left_x
+        self.max_scroll = max(0, total_content - visible + 10)
+
+    def get_btn_rects(self):
+        """Return list of pygame.Rects for each button (scrolled positions)."""
+        rects = []
+        for i in range(self.btn_count):
+            x = self.left_x + i * (self.btn_width + self.btn_gap) - self.scroll_x
+            rects.append(pygame.Rect(int(x), self.y, self.btn_width, self.height))
+        return rects
+
+    def handle_event(self, event):
+        """Handle touch events for scrolling. Returns True if event was consumed."""
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            mx, my = event.pos
+            if self.y <= my <= self.y + self.height and mx >= self.left_x:
+                self._dragging = True
+                self._drag_start_x = mx
+                self._drag_start_scroll = self.scroll_x
+                self._last_mx = mx
+                self._was_drag = False
+                self._velocity = 0.0
+                return True
+
+        elif event.type == pygame.MOUSEMOTION and self._dragging:
+            mx, my = event.pos
+            dx = self._drag_start_x - mx
+            if abs(dx) > 8:
+                self._was_drag = True
+            self.scroll_x = self._drag_start_scroll + dx
+            self.scroll_x = max(0, min(self.max_scroll, self.scroll_x))
+            self._velocity = (self._last_mx - mx) * 4
+            self._last_mx = mx
+            return True
+
+        elif event.type == pygame.MOUSEBUTTONUP and self._dragging:
+            self._dragging = False
+            return self._was_drag  # consume if it was a drag, not a tap
+
+        return False
+
+    def update(self, dt):
+        """Apply momentum scrolling."""
+        if not self._dragging and abs(self._velocity) > 1:
+            self.scroll_x += self._velocity * dt
+            self.scroll_x = max(0, min(self.max_scroll, self.scroll_x))
+            self._velocity *= 0.9  # friction
+
+    def get_btn_at(self, pos):
+        """Return button index at pos, or -1. Only valid if not a drag gesture."""
+        if self._was_drag:
+            return -1
+        mx, my = pos
+        if not (self.y <= my <= self.y + self.height):
+            return -1
+        for i, rect in enumerate(self.get_btn_rects()):
+            if rect.collidepoint(mx, my):
+                return i
+        return -1
+
+    def needs_scroll(self):
+        """Return True if content exceeds visible area."""
+        return self.max_scroll > 0
+
+    def draw_scroll_hint(self, surface):
+        """Draw subtle scroll indicators if there's more content."""
+        if self.max_scroll <= 0:
+            return
+        # Right fade hint
+        if self.scroll_x < self.max_scroll - 5:
+            for i in range(20):
+                alpha = int(80 * (1 - i / 20))
+                x = WIDTH - 20 + i
+                pygame.draw.line(surface, (0, 0, 0),
+                                 (x, self.y), (x, self.y + self.height))
+        # Left fade hint
+        if self.scroll_x > 5:
+            for i in range(20):
+                alpha = int(80 * (i / 20))
+                x = self.left_x + i
+                pygame.draw.line(surface, (0, 0, 0),
+                                 (x, self.y), (x, self.y + self.height))

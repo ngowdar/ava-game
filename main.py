@@ -3,13 +3,18 @@
 import pygame
 import sys
 from config import WIDTH, HEIGHT, FPS
-from config import MAIN_MENU, GAMES_MENU, BUBBLE_POP, ANIMAL_SOUNDS, WHACK_A_CRITTER, SHOWS, REMOTE, VIDEOS
+from config import (MAIN_MENU, GAMES_MENU, SHOWS, REMOTE, VIDEOS,
+                    FINGER_PAINT, SHAPE_SORTER, MAGIC_GARDEN,
+                    FIREWORKS, PARTICLE_PLAYGROUND, WEATHER_TOY)
 from app import App
 from screens.main_menu import MainMenuScreen
 from screens.games_menu import GamesMenuScreen
-from screens.bubble_pop import BubblePopScreen
-from screens.animal_sounds import AnimalSoundsScreen
-from screens.whack_a_critter import WhackACritterScreen
+from screens.finger_paint import FingerPaintScreen
+from screens.shape_sorter import ShapeSorterScreen
+from screens.magic_garden import MagicGardenScreen
+from screens.fireworks import FireworksScreen
+from screens.particle_playground import ParticlePlaygroundScreen
+from screens.weather_toy import WeatherToyScreen
 from screens.shows import ShowsScreen
 from screens.remote import RemoteScreen
 from screens.videos import VideosScreen
@@ -26,9 +31,12 @@ def main():
     # Register all screens
     app.register(MAIN_MENU, MainMenuScreen(app))
     app.register(GAMES_MENU, GamesMenuScreen(app))
-    app.register(BUBBLE_POP, BubblePopScreen(app))
-    app.register(ANIMAL_SOUNDS, AnimalSoundsScreen(app))
-    app.register(WHACK_A_CRITTER, WhackACritterScreen(app))
+    app.register(FINGER_PAINT, FingerPaintScreen(app))
+    app.register(SHAPE_SORTER, ShapeSorterScreen(app))
+    app.register(MAGIC_GARDEN, MagicGardenScreen(app))
+    app.register(FIREWORKS, FireworksScreen(app))
+    app.register(PARTICLE_PLAYGROUND, ParticlePlaygroundScreen(app))
+    app.register(WEATHER_TOY, WeatherToyScreen(app))
     app.register(SHOWS, ShowsScreen(app))
     app.register(REMOTE, RemoteScreen(app))
     app.register(VIDEOS, VideosScreen(app))

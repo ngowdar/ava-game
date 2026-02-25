@@ -1,30 +1,51 @@
-# screens/games_menu.py — 3 game cards grid with 3D depth
+# screens/games_menu.py — 2x3 game cards grid with 3D depth
 
 import math
 import pygame
-from config import WIDTH, HEIGHT, SKY_BLUE, WHITE, BLACK, BUBBLE_POP, ANIMAL_SOUNDS, WHACK_A_CRITTER
-from ui import draw_header, draw_3d_card, get_font, PressTracker
+from config import (WIDTH, HEIGHT, SKY_BLUE, WHITE, BACK_BTN_SIZE, BACK_BTN_MARGIN,
+                    FINGER_PAINT, SHAPE_SORTER, MAGIC_GARDEN,
+                    FIREWORKS, PARTICLE_PLAYGROUND, WEATHER_TOY)
+from ui import draw_back_button, draw_3d_card, get_font, PressTracker
 
 
 class GamesMenuScreen:
     def __init__(self, app):
         self.app = app
-        # Top row: two cards
-        self.card_bubble = pygame.Rect(30, 120, 310, 250)
-        self.card_animal = pygame.Rect(380, 120, 310, 250)
-        # Bottom row: one centered card
-        self.card_whack = pygame.Rect(210, 410, 310, 250)
-        self.cards = [self.card_bubble, self.card_animal, self.card_whack]
-        self.states = [BUBBLE_POP, ANIMAL_SOUNDS, WHACK_A_CRITTER]
-        self.colors = [(0, 180, 255), (255, 140, 50), (180, 50, 200)]
-        self.names = ["BUBBLE POP", "ANIMAL SOUNDS", "WHACK-A-CRITTER"]
+
+        # Full-screen 2x3 grid — maximize card size
+        margin = 16
+        top_y = BACK_BTN_MARGIN + BACK_BTN_SIZE + 10  # below back button
+        gap_x, gap_y = 14, 14
+        col_w = (WIDTH - 2 * margin - gap_x) // 2
+        row_h = (HEIGHT - top_y - margin - 2 * gap_y) // 3
+
+        self.cards = []
+        for row in range(3):
+            for col in range(2):
+                x = margin + col * (col_w + gap_x)
+                y = top_y + row * (row_h + gap_y)
+                self.cards.append(pygame.Rect(x, y, col_w, row_h))
+
+        self.states = [FINGER_PAINT, SHAPE_SORTER, MAGIC_GARDEN,
+                       FIREWORKS, PARTICLE_PLAYGROUND, WEATHER_TOY]
+        self.colors = [
+            (255, 80, 120),   # Finger Paint - pink/red
+            (80, 180, 255),   # Shape Sorter - blue
+            (80, 200, 80),    # Magic Garden - green
+            (255, 160, 40),   # Fireworks - orange
+            (180, 60, 220),   # Particle Play - purple
+            (60, 180, 200),   # Weather Toy - teal
+        ]
+        self.names = ["FINGER PAINT", "SHAPE SORTER", "MAGIC GARDEN",
+                      "FIREWORKS", "PARTICLES", "WEATHER TOY"]
+        self.icons = ["paint", "shapes", "flower", "rocket", "sparkle", "cloud"]
         self.back_rect = None
-        self.press = PressTracker(3)
+        self.press = PressTracker(6)
         self.pending_nav = None
         self.time = 0.0
 
     def on_enter(self):
-        self.press = PressTracker(3)
+        self.press = PressTracker(6)
         self.pending_nav = None
         self.time = 0.0
 
@@ -54,55 +75,84 @@ class GamesMenuScreen:
 
     def draw(self, surface):
         surface.fill(SKY_BLUE)
-        self.back_rect = draw_header(surface, "GAMES")
-
-        icons = [self._draw_bubble_icon, self._draw_animal_icon, self._draw_whack_icon]
 
         for i, card in enumerate(self.cards):
             pressed = self.press.is_pressed(i)
-            face = draw_3d_card(surface, card, self.colors[i], 20, pressed)
+            face = draw_3d_card(surface, card, self.colors[i], 18, pressed)
 
-            # Icon
-            icons[i](surface, face.centerx, face.y + 95, pressed)
+            # Draw icon — centered in upper portion of card
+            cx = face.centerx
+            icon_cy = face.y + face.height * 0.38
+            off = 2 if pressed else 0
+            self._draw_icon(surface, self.icons[i], cx, int(icon_cy) + off, face.height)
 
-            # Name
-            font = get_font(22)
+            # Name — larger font, in lower portion
+            font = get_font(26)
             text_surf = font.render(self.names[i], True, WHITE)
-            offset_y = 2 if pressed else 0
-            text_rect = text_surf.get_rect(center=(face.centerx, face.y + 195 + offset_y))
+            text_rect = text_surf.get_rect(center=(face.centerx, face.y + face.height * 0.78 + off))
             surface.blit(text_surf, text_rect)
 
-    def _draw_bubble_icon(self, surface, cx, cy, pressed):
-        offset = 2 if pressed else 0
-        cy += offset
-        # Gentle bobbing
-        bob = math.sin(self.time * 3) * 3
-        pygame.draw.circle(surface, (100, 200, 255), (cx - 30, int(cy - 10 + bob)), 28)
-        pygame.draw.circle(surface, WHITE, (cx - 40, int(cy - 20 + bob)), 8)
-        pygame.draw.circle(surface, (255, 150, 200), (cx + 25, int(cy + 5 - bob)), 22)
-        pygame.draw.circle(surface, WHITE, (cx + 18, int(cy - 2 - bob)), 6)
-        pygame.draw.circle(surface, (150, 255, 150), (cx + 5, int(cy - 35 + bob * 0.5)), 18)
-        pygame.draw.circle(surface, WHITE, (cx, int(cy - 42 + bob * 0.5)), 5)
+        # Back button on top of everything
+        self.back_rect = draw_back_button(surface)
 
-    def _draw_animal_icon(self, surface, cx, cy, pressed):
-        offset = 2 if pressed else 0
-        cy += offset
-        pygame.draw.circle(surface, WHITE, (cx, cy + 10), 22)
-        pygame.draw.circle(surface, WHITE, (cx - 20, cy - 18), 12)
-        pygame.draw.circle(surface, WHITE, (cx + 20, cy - 18), 12)
-        pygame.draw.circle(surface, WHITE, (cx - 8, cy - 28), 12)
-        pygame.draw.circle(surface, WHITE, (cx + 8, cy - 28), 12)
-
-    def _draw_whack_icon(self, surface, cx, cy, pressed):
-        offset = 2 if pressed else 0
-        cy += offset
-        # Handle
-        pygame.draw.rect(surface, (180, 130, 70), (cx - 5, cy - 5, 10, 55))
-        # Head
-        pygame.draw.rect(surface, (120, 80, 40), (cx - 30, cy - 30, 60, 30), border_radius=6)
-        # Stars
-        for i in range(5):
-            angle = i * (2 * math.pi / 5) - math.pi / 2 + self.time * 2
-            x = cx + 35 + int(14 * math.cos(angle))
-            y = cy - 25 + int(14 * math.sin(angle))
-            pygame.draw.circle(surface, (255, 255, 100), (x, y), 4)
+    def _draw_icon(self, surface, icon, cx, cy, card_h):
+        # Scale factor based on card size (larger cards = larger icons)
+        s = card_h / 185.0  # normalize to original card height
+        if icon == "paint":
+            pygame.draw.line(surface, (255, 255, 200),
+                             (cx - int(20*s), cy + int(28*s)),
+                             (cx + int(14*s), cy - int(20*s)), max(3, int(8*s)))
+            pygame.draw.circle(surface, WHITE, (cx + int(16*s), cy - int(24*s)), int(14*s))
+            for j, col in enumerate([(255, 0, 0), (0, 200, 0), (0, 100, 255)]):
+                pygame.draw.circle(surface, col,
+                                   (cx - int(26*s) + int(j * 20*s), cy + int(38*s)), int(9*s))
+        elif icon == "shapes":
+            pygame.draw.polygon(surface, (255, 220, 80),
+                                [(cx - int(34*s), cy + int(20*s)),
+                                 (cx - int(12*s), cy - int(20*s)),
+                                 (cx + int(8*s), cy + int(20*s))])
+            pygame.draw.circle(surface, (100, 220, 255), (cx + int(28*s), cy - int(8*s)), int(16*s))
+            pygame.draw.rect(surface, (255, 130, 130),
+                             (cx + int(6*s), cy + int(2*s), int(28*s), int(28*s)))
+        elif icon == "flower":
+            for angle in range(0, 360, 72):
+                rad = math.radians(angle)
+                px = cx + int(20*s * math.cos(rad))
+                py = cy + int(20*s * math.sin(rad))
+                pygame.draw.circle(surface, (255, 180, 200), (px, py), int(13*s))
+            pygame.draw.circle(surface, (255, 220, 80), (cx, cy), int(11*s))
+            pygame.draw.line(surface, (80, 180, 80),
+                             (cx, cy + int(20*s)), (cx, cy + int(42*s)), max(2, int(4*s)))
+        elif icon == "rocket":
+            pygame.draw.polygon(surface, WHITE,
+                                [(cx, cy - int(35*s)),
+                                 (cx - int(14*s), cy + int(8*s)),
+                                 (cx + int(14*s), cy + int(8*s))])
+            pygame.draw.rect(surface, (200, 200, 200),
+                             (cx - int(11*s), cy + int(8*s), int(22*s), int(14*s)))
+            bob = math.sin(self.time * 12) * int(4*s)
+            pygame.draw.polygon(surface, (255, 160, 40),
+                                [(cx - int(8*s), cy + int(22*s)),
+                                 (cx, cy + int(35*s) + bob),
+                                 (cx + int(8*s), cy + int(22*s))])
+        elif icon == "sparkle":
+            for j in range(8):
+                angle = j * (math.pi / 4) + self.time * 2
+                length = int((20 + math.sin(self.time * 5 + j) * 7) * s)
+                x1 = cx + int(8*s * math.cos(angle))
+                y1 = cy + int(8*s * math.sin(angle))
+                x2 = cx + int(length * math.cos(angle))
+                y2 = cy + int(length * math.sin(angle))
+                col = [(255, 100, 255), (100, 200, 255), (255, 255, 100), (100, 255, 150)][j % 4]
+                pygame.draw.line(surface, col, (x1, y1), (x2, y2), max(2, int(3*s)))
+            pygame.draw.circle(surface, WHITE, (cx, cy), int(7*s))
+        elif icon == "cloud":
+            pygame.draw.circle(surface, WHITE, (cx - int(16*s), cy - int(8*s)), int(20*s))
+            pygame.draw.circle(surface, WHITE, (cx + int(16*s), cy - int(8*s)), int(20*s))
+            pygame.draw.circle(surface, WHITE, (cx, cy - int(20*s)), int(20*s))
+            pygame.draw.rect(surface, WHITE,
+                             (cx - int(28*s), cy - int(12*s), int(56*s), int(16*s)))
+            for j in range(3):
+                dy = (self.time * 40 + j * 15) % int(35*s)
+                pygame.draw.circle(surface, (100, 180, 255),
+                                   (cx - int(16*s) + int(j * 16*s), int(cy + 12*s + dy)), int(4*s))
