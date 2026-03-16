@@ -4,6 +4,7 @@ import math
 import random
 import pygame
 from config import WIDTH, HEIGHT, WHITE, GREEN, ORANGE, GAMES_MENU, SHOWS, VIDEOS
+from config import ADMIN_PIN, SHUTDOWN_ACTION
 from ui import draw_3d_button, get_font, PressTracker, hsv_to_rgb
 
 
@@ -278,6 +279,164 @@ class AvaLetter:
         surface.blit(text_surf, rect)
 
 
+# ---------- PIN keypad overlay ----------
+
+class PinOverlay:
+    """Full-screen PIN entry overlay triggered by hidden tap zone."""
+
+    def __init__(self):
+        self.active = False
+        self.entered = ""
+        self.shake_timer = 0.0
+        self.shake_offset = 0
+        self.success = False
+        self.success_timer = 0.0
+        # Keypad layout: 3x4 grid
+        self.btn_size = 100
+        self.btn_gap = 16
+        grid_w = 3 * self.btn_size + 2 * self.btn_gap
+        grid_h = 4 * self.btn_size + 3 * self.btn_gap
+        self.grid_x = (WIDTH - grid_w) // 2
+        self.grid_y = (HEIGHT - grid_h) // 2 + 50
+        self.keys = [
+            ["1", "2", "3"],
+            ["4", "5", "6"],
+            ["7", "8", "9"],
+            ["C", "0", "<"],
+        ]
+        self.pressed_key = None
+        self.pressed_timer = 0.0
+
+    def open(self):
+        self.active = True
+        self.entered = ""
+        self.shake_timer = 0.0
+        self.success = False
+        self.success_timer = 0.0
+        self.pressed_key = None
+
+    def close(self):
+        self.active = False
+        self.entered = ""
+
+    def _get_key_rect(self, row, col):
+        x = self.grid_x + col * (self.btn_size + self.btn_gap)
+        y = self.grid_y + row * (self.btn_size + self.btn_gap)
+        return pygame.Rect(x, y, self.btn_size, self.btn_size)
+
+    def handle_event(self, event):
+        """Returns 'shutdown' if PIN correct, 'cancel' if dismissed, None otherwise."""
+        if not self.active or self.success:
+            return None
+
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            pos = event.pos
+            for r, row in enumerate(self.keys):
+                for c, key in enumerate(row):
+                    rect = self._get_key_rect(r, c)
+                    if rect.collidepoint(pos):
+                        self.pressed_key = (r, c)
+                        self.pressed_timer = 0.12
+                        if key == "C":
+                            self.entered = ""
+                        elif key == "<":
+                            self.entered = self.entered[:-1]
+                        else:
+                            self.entered += key
+                            if len(self.entered) == len(ADMIN_PIN):
+                                if self.entered == ADMIN_PIN:
+                                    self.success = True
+                                    self.success_timer = 0.6
+                                    return None  # will trigger on timer
+                                else:
+                                    self.shake_timer = 0.4
+                                    self.entered = ""
+                        return None
+
+            # Tap outside keypad area = cancel
+            keypad_area = pygame.Rect(
+                self.grid_x - 30, self.grid_y - 120,
+                3 * self.btn_size + 2 * self.btn_gap + 60,
+                4 * self.btn_size + 3 * self.btn_gap + 150)
+            if not keypad_area.collidepoint(pos):
+                self.close()
+                return "cancel"
+
+        return None
+
+    def update(self, dt):
+        """Returns 'shutdown' when success animation completes."""
+        if not self.active:
+            return None
+
+        if self.pressed_timer > 0:
+            self.pressed_timer -= dt
+            if self.pressed_timer <= 0:
+                self.pressed_key = None
+
+        if self.shake_timer > 0:
+            self.shake_timer -= dt
+            self.shake_offset = int(math.sin(self.shake_timer * 30) * 8)
+            if self.shake_timer <= 0:
+                self.shake_offset = 0
+
+        if self.success:
+            self.success_timer -= dt
+            if self.success_timer <= 0:
+                return "shutdown"
+
+        return None
+
+    def draw(self, surface):
+        if not self.active:
+            return
+
+        # Dim overlay
+        overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 180))
+        surface.blit(overlay, (0, 0))
+
+        # PIN dots
+        dot_y = self.grid_y - 70
+        dot_spacing = 36
+        pin_len = len(ADMIN_PIN)
+        dots_width = (pin_len - 1) * dot_spacing
+        dot_start_x = WIDTH // 2 - dots_width // 2 + self.shake_offset
+        for i in range(pin_len):
+            cx = dot_start_x + i * dot_spacing
+            if i < len(self.entered):
+                color = (100, 255, 100) if self.success else WHITE
+                pygame.draw.circle(surface, color, (cx, dot_y), 12)
+            else:
+                pygame.draw.circle(surface, (120, 120, 120), (cx, dot_y), 12, 2)
+
+        # Keypad buttons
+        for r, row in enumerate(self.keys):
+            for c, key in enumerate(row):
+                rect = self._get_key_rect(r, c)
+                is_pressed = self.pressed_key == (r, c) and self.pressed_timer > 0
+
+                if is_pressed:
+                    color = (80, 80, 80)
+                    rect = pygame.Rect(rect.x, rect.y + 2, rect.width, rect.height - 2)
+                else:
+                    # Bottom edge
+                    bottom = pygame.Rect(rect.x, rect.y + 3, rect.width, rect.height)
+                    pygame.draw.rect(surface, (30, 30, 30), bottom, border_radius=16)
+                    color = (60, 60, 60)
+
+                pygame.draw.rect(surface, color, rect, border_radius=16)
+                pygame.draw.rect(surface, (90, 90, 90), rect, width=1, border_radius=16)
+
+                font = get_font(36)
+                label = key
+                if key == "<":
+                    label = "\u2190"
+                text = font.render(label, True, WHITE)
+                text_rect = text.get_rect(center=rect.center)
+                surface.blit(text, text_rect)
+
+
 # ---------- Main screen class ----------
 
 class MainMenuScreen:
@@ -337,6 +496,11 @@ class MainMenuScreen:
         self.enter_timer = 0.0
         self.entered = False
 
+        # Hidden shutdown: 5 taps in top-right corner within 3 seconds
+        self.secret_zone = pygame.Rect(WIDTH - 80, 0, 80, 80)
+        self.secret_taps = []
+        self.pin_overlay = PinOverlay()
+
     def _rebuild_gradient(self):
         """Render the lava-lamp gradient background to a cached surface."""
         # Start with a dark-ish base
@@ -379,11 +543,29 @@ class MainMenuScreen:
         for letter in self.letters:
             letter.color = WHITE
             letter.particles.clear()
+        self.secret_taps = []
+        self.pin_overlay.close()
 
     def handle_event(self, event):
+        # PIN overlay intercepts all events when active
+        if self.pin_overlay.active:
+            self.pin_overlay.handle_event(event)
+            return
+
         if event.type == pygame.MOUSEBUTTONDOWN:
             pos = event.pos
             self.dragging = True
+
+            # Hidden shutdown zone: top-right corner
+            if self.secret_zone.collidepoint(pos):
+                now = pygame.time.get_ticks() / 1000.0
+                self.secret_taps.append(now)
+                # Keep only taps within the last 3 seconds
+                self.secret_taps = [t for t in self.secret_taps if now - t < 3.0]
+                if len(self.secret_taps) >= 5:
+                    self.secret_taps = []
+                    self.pin_overlay.open()
+                return
 
             # Check button taps (use animated positions)
             for i, btn in enumerate(self.buttons):
@@ -414,6 +596,19 @@ class MainMenuScreen:
             self.trail.append(TrailDot(pos[0], pos[1], self.trail_hue))
 
     def update(self, dt):
+        # PIN overlay update
+        if self.pin_overlay.active:
+            result = self.pin_overlay.update(dt)
+            if result == "shutdown":
+                self.pin_overlay.close()
+                if SHUTDOWN_ACTION == "shutdown":
+                    import subprocess
+                    subprocess.Popen(["sudo", "shutdown", "now"])
+                pygame.quit()
+                import sys
+                sys.exit()
+            return
+
         self.time += dt
         self.enter_timer += dt
         self.press.update(dt)
@@ -494,3 +689,6 @@ class MainMenuScreen:
             draw_3d_button(surface, self.btn_labels[i], self.buttons[i],
                           self.btn_colors[i], WHITE, 34, 24,
                           pressed=self.press.is_pressed(i))
+
+        # PIN overlay (drawn on top of everything)
+        self.pin_overlay.draw(surface)

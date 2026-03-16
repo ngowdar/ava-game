@@ -5,23 +5,35 @@ import math
 import pygame
 from config import WHITE, BLACK, BACK_BTN_SIZE, BACK_BTN_MARGIN, WIDTH
 
-# Font paths — DejaVu Sans Bold is pre-installed on Raspberry Pi OS.
-_FONT_BOLD_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
-_FONT_REG_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+# Font paths — IBM Plex Sans bundled in assets/fonts/, with fallbacks.
+_ASSET_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "fonts")
+_FONT_PATHS = {
+    (True, "sans"):   os.path.join(_ASSET_DIR, "IBMPlexSans-Bold.ttf"),
+    (False, "sans"):  os.path.join(_ASSET_DIR, "IBMPlexSans-Regular.ttf"),
+    (True, "serif"):  os.path.join(_ASSET_DIR, "IBMPlexSerif-Bold.ttf"),
+    (False, "serif"): os.path.join(_ASSET_DIR, "IBMPlexSerif-Regular.ttf"),
+}
+_FALLBACK_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+_FALLBACK_REG = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
 
 # Cached fonts
 _font_cache = {}
 
 
-def get_font(size, bold=True):
-    """Get DejaVu Sans font at given size, with fallback to pygame default."""
-    key = (size, bold)
+def get_font(size, bold=True, family="sans"):
+    """Get IBM Plex font at given size. family='sans' or 'serif'.
+    Falls back to DejaVu Sans, then pygame default."""
+    key = (size, bold, family)
     if key not in _font_cache:
-        path = _FONT_BOLD_PATH if bold else _FONT_REG_PATH
-        if os.path.exists(path):
+        path = _FONT_PATHS.get((bold, family))
+        if path and os.path.exists(path):
             _font_cache[key] = pygame.font.Font(path, size)
         else:
-            _font_cache[key] = pygame.font.Font(None, size + 6)
+            fb = _FALLBACK_BOLD if bold else _FALLBACK_REG
+            if os.path.exists(fb):
+                _font_cache[key] = pygame.font.Font(fb, size)
+            else:
+                _font_cache[key] = pygame.font.Font(None, size + 6)
     return _font_cache[key]
 
 
@@ -363,3 +375,83 @@ class ScrollToolbar:
                 x = self.left_x + i
                 pygame.draw.line(surface, (0, 0, 0),
                                  (x, self.y), (x, self.y + self.height))
+
+
+# --- Battery indicator ---
+
+def draw_battery_indicator(surface, pct, charging=None):
+    """Draw a small battery icon with percentage in the bottom-right corner.
+    pct: 0-100 or None (shows '?'). Semi-transparent overlay."""
+    margin = 10
+    batt_w, batt_h = 34, 18
+    tip_w, tip_h = 3, 8
+    x = WIDTH - margin - batt_w - tip_w - 4
+    y = 720 - margin - batt_h - 4
+
+    overlay = pygame.Surface((batt_w + tip_w + 60, batt_h + 10), pygame.SRCALPHA)
+
+    # Battery outline
+    ox, oy = 50, 4
+    pygame.draw.rect(overlay, (255, 255, 255, 140),
+                     (ox, oy, batt_w, batt_h), 2, border_radius=3)
+    # Tip
+    pygame.draw.rect(overlay, (255, 255, 255, 140),
+                     (ox + batt_w, oy + (batt_h - tip_h) // 2, tip_w, tip_h))
+
+    # Fill
+    if pct is not None:
+        fill_w = max(0, int((batt_w - 4) * pct / 100))
+        if pct > 50:
+            fill_color = (100, 220, 100, 160)
+        elif pct > 20:
+            fill_color = (255, 200, 60, 160)
+        else:
+            fill_color = (255, 70, 70, 180)
+        if fill_w > 0:
+            pygame.draw.rect(overlay, fill_color,
+                             (ox + 2, oy + 2, fill_w, batt_h - 4), border_radius=2)
+
+    # Text
+    font = get_font(16, bold=False)
+    if pct is not None:
+        label = f"{pct}%"
+    else:
+        label = "?"
+    text = font.render(label, True, (255, 255, 255))
+    text.set_alpha(160)
+    text_rect = text.get_rect(midright=(ox - 4, oy + batt_h // 2))
+    overlay.blit(text, text_rect)
+
+    surface.blit(overlay, (x - 50, y - 4))
+
+
+def draw_wifi_indicator(surface, connected):
+    """Draw a small WiFi icon in the bottom-left corner. Green if connected, red if not."""
+    margin = 12
+    x = margin
+    y = 720 - margin - 22
+
+    color = (100, 220, 100, 180) if connected else (255, 70, 70, 180)
+
+    overlay = pygame.Surface((30, 26), pygame.SRCALPHA)
+    cx, cy = 15, 22
+
+    # Draw arcs (3 arcs for WiFi signal)
+    for i, radius in enumerate([18, 12, 6]):
+        alpha = color[3] if connected else color[3]
+        arc_color = (*color[:3], alpha)
+        # Draw arc using lines approximation
+        import math
+        points = []
+        for a in range(0, 31):
+            angle = math.pi + (math.pi * a / 30)  # top half semicircle
+            px = cx + int(radius * math.cos(angle))
+            py = cy + int(radius * math.sin(angle))
+            points.append((px, py))
+        if len(points) > 1:
+            pygame.draw.lines(overlay, arc_color, False, points, 2)
+
+    # Center dot
+    pygame.draw.circle(overlay, (*color[:3], color[3]), (cx, cy), 3)
+
+    surface.blit(overlay, (x, y))

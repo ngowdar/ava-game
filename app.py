@@ -1,6 +1,8 @@
 # app.py — App state machine and screen routing
 
 from config import MAIN_MENU
+from battery import get_battery, get_wifi_connected
+from ui import draw_battery_indicator, draw_wifi_indicator
 
 
 class App:
@@ -46,3 +48,7 @@ class App:
         screen = self.screens.get(self.state)
         if screen:
             screen.draw(surface)
+        # Status indicators on every screen
+        pct, charging = get_battery()
+        draw_battery_indicator(surface, pct, charging)
+        draw_wifi_indicator(surface, get_wifi_connected())

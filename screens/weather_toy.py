@@ -278,13 +278,14 @@ class WeatherToyScreen:
         self._switch_scene(SCENE_SNOW)
 
     def handle_event(self, event):
-        # Let toolbar handle scroll gestures first
-        if self.toolbar.handle_event(event):
-            # Check if it was a tap (not a drag) on a button
-            if event.type == pygame.MOUSEBUTTONUP:
-                idx = self.toolbar.get_btn_at(event.pos)
-                if idx >= 0 and idx != self.scene:
-                    self._switch_scene(idx)
+        # Let toolbar handle scroll gestures — only consume if it was a drag
+        consumed = self.toolbar.handle_event(event)
+        if consumed and event.type == pygame.MOUSEBUTTONUP:
+            idx = self.toolbar.get_btn_at(event.pos)
+            if idx >= 0 and idx != self.scene:
+                self._switch_scene(idx)
+            return
+        if consumed and event.type == pygame.MOUSEMOTION:
             return
 
         if event.type == pygame.MOUSEBUTTONDOWN:
@@ -293,7 +294,7 @@ class WeatherToyScreen:
             if self.back_rect and self.back_rect.collidepoint(pos):
                 self.app.go_back()
                 return
-            # Scene button tap (when no scrolling needed)
+            # Scene button tap
             idx = self.toolbar.get_btn_at(pos)
             if idx >= 0:
                 if idx != self.scene:

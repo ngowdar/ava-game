@@ -236,12 +236,14 @@ class ParticlePlaygroundScreen:
         self._rain_timer = 0.0
 
     def handle_event(self, event):
-        # Toolbar scroll handling
-        if self.toolbar.handle_event(event):
-            if event.type == pygame.MOUSEBUTTONUP:
-                idx = self.toolbar.get_btn_at(event.pos)
-                if idx >= 0:
-                    self.mode = idx
+        # Toolbar scroll handling — only consume if it was a drag gesture
+        consumed = self.toolbar.handle_event(event)
+        if consumed and event.type == pygame.MOUSEBUTTONUP:
+            idx = self.toolbar.get_btn_at(event.pos)
+            if idx >= 0:
+                self.mode = idx
+            return
+        if consumed and event.type == pygame.MOUSEMOTION:
             return
 
         if event.type == pygame.MOUSEBUTTONDOWN:

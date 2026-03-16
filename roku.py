@@ -5,7 +5,7 @@ import urllib.request
 from config import ROKU_IP, ROKU_PORT
 
 # Set to False to disable all Roku commands (no network calls)
-ENABLED = False
+ENABLED = True
 
 
 def _post(url):

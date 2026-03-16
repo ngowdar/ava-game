@@ -1,13 +1,13 @@
-# screens/videos.py — Curated YouTube videos played via mpv (no YT UI, no algorithm)
-#   Videos play fullscreen on the Pi display via mpv + yt-dlp
-#   No YouTube interface = no recommendations, no rabbit holes
+# screens/videos.py — Curated YouTube videos launched via Roku YouTube app
+#   Tap a card → launches video on the TV via Roku deep link
+#   Cards show thumbnail + title overlay
 
-import subprocess
-import threading
+import os
 import pygame
-from config import WIDTH, HEIGHT, SKY_BLUE, WHITE, BLACK, VIDEOS_DATA
-from ui import (draw_header, draw_3d_card, draw_3d_button, get_font,
+from config import WIDTH, HEIGHT, SKY_BLUE, WHITE, BLACK, VIDEOS_DATA, YOUTUBE_CHANNEL_ID
+from ui import (draw_header, draw_3d_card, get_font,
                 draw_wrapped_text, PressTracker)
+import roku
 
 
 class VideosScreen:
@@ -24,7 +24,6 @@ class VideosScreen:
         self.back_rect = None
         self.press = PressTracker(max(1, len(VIDEOS_DATA)))
         self.scroll_y = 0
-        self.playing = False
 
         # Scroll tracking
         self.touch_down_pos = None
@@ -36,14 +35,33 @@ class VideosScreen:
         self.content_h = num_rows * self.CARD_H + max(0, num_rows - 1) * self.GAP
         self.visible_h = HEIGHT - self.GRID_TOP
 
-        self.title_font = get_font(22)
+        self.title_font = get_font(18)
         self.msg_font = get_font(20, bold=False)
-        self.emoji_font = get_font(48)
+
+        # Load thumbnails
+        self.thumbnails = {}
+        self._load_thumbnails()
+
+    def _load_thumbnails(self):
+        assets_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)),
+                                  "assets", "videos")
+        for i, entry in enumerate(VIDEOS_DATA):
+            img_file = entry[3] if len(entry) > 3 else None
+            if not img_file:
+                continue
+            path = os.path.join(assets_dir, img_file)
+            if os.path.exists(path):
+                try:
+                    img = pygame.image.load(path)
+                    # Scale to fill the card area
+                    img = pygame.transform.smoothscale(img, (self.CARD_W, self.CARD_H))
+                    self.thumbnails[i] = img
+                except Exception:
+                    pass
 
     def on_enter(self):
         self.scroll_y = 0
         self.press = PressTracker(max(1, len(VIDEOS_DATA)))
-        self.playing = False
 
     @property
     def max_scroll(self):
@@ -59,29 +77,7 @@ class VideosScreen:
         y = self.GRID_TOP + row * (self.CARD_H + self.GAP) - self.scroll_y
         return pygame.Rect(x, y, self.CARD_W, self.CARD_H)
 
-    def _play_video(self, video_id):
-        """Launch mpv to play a YouTube video fullscreen. Blocks until done."""
-        url = f"https://www.youtube.com/watch?v={video_id}"
-        try:
-            subprocess.run([
-                "mpv",
-                "--fs",                          # fullscreen
-                "--ytdl-format=best[height<=720]",  # cap quality for Pi
-                "--no-terminal",                 # no terminal output
-                "--really-quiet",                # suppress messages
-                "--input-default-bindings=no",   # disable keyboard shortcuts
-                "--osc=no",                      # no on-screen controller
-                "--cursor-autohide=0.5",
-                url
-            ], timeout=1800)  # 30 min max
-        except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
-            pass
-        self.playing = False
-
     def handle_event(self, event):
-        if self.playing:
-            return
-
         if event.type == pygame.MOUSEBUTTONDOWN:
             pos = event.pos
             self.touch_down_pos = pos
@@ -116,15 +112,8 @@ class VideosScreen:
                         rect = self._card_rect(i)
                         if rect.collidepoint(pos) and rect.top >= self.HEADER_H - 10:
                             self.press.trigger(i)
-                            title, video_id, bg_color = VIDEOS_DATA[i]
-                            self.playing = True
-                            # Run mpv in a thread so pygame loop stays alive
-                            # (needed to process quit events)
-                            threading.Thread(
-                                target=self._play_video,
-                                args=(video_id,),
-                                daemon=True
-                            ).start()
+                            video_id = VIDEOS_DATA[i][1]
+                            roku.launch_show(YOUTUBE_CHANNEL_ID, video_id, "movie")
                             break
 
             self.touch_down_pos = None
@@ -138,46 +127,53 @@ class VideosScreen:
         surface.fill(SKY_BLUE)
 
         if len(VIDEOS_DATA) == 0:
-            # Empty state
             draw_wrapped_text(surface, "No videos yet!", self.title_font, WHITE,
                               WIDTH // 2, HEIGHT // 2 - 30, WIDTH - 60)
             draw_wrapped_text(surface, "Add videos in config.py", self.msg_font,
                               (200, 220, 240), WIDTH // 2, HEIGHT // 2 + 20, WIDTH - 60)
-        elif self.playing:
-            # Show "playing" state while mpv is running
-            draw_wrapped_text(surface, "Playing video...", self.title_font, WHITE,
-                              WIDTH // 2, HEIGHT // 2 - 10, WIDTH - 60)
-            draw_wrapped_text(surface, "Tap screen in video to pause",
-                              self.msg_font, (200, 220, 240),
-                              WIDTH // 2, HEIGHT // 2 + 30, WIDTH - 60)
         else:
-            # Draw video cards
             for i in range(len(VIDEOS_DATA)):
                 rect = self._card_rect(i)
                 if rect.bottom < self.HEADER_H or rect.top > HEIGHT:
                     continue
 
-                title, video_id, bg_color = VIDEOS_DATA[i]
-                text_color = BLACK if sum(bg_color) > 400 else WHITE
+                title, video_id, bg_color = VIDEOS_DATA[i][0], VIDEOS_DATA[i][1], VIDEOS_DATA[i][2]
                 pressed = self.press.is_pressed(i)
 
-                face = draw_3d_card(surface, rect, bg_color, 16, pressed)
+                if i in self.thumbnails:
+                    # Draw thumbnail card with 3D depth
+                    face = draw_3d_card(surface, rect, bg_color, 16, pressed)
 
-                # Play triangle icon
-                play_cx = face.x + 45
-                play_cy = face.centery
-                tri_size = 18
-                pygame.draw.polygon(surface, (*WHITE, 180) if not pressed else WHITE, [
-                    (play_cx - tri_size // 2, play_cy - tri_size),
-                    (play_cx - tri_size // 2, play_cy + tri_size),
-                    (play_cx + tri_size, play_cy),
-                ])
+                    # Blit thumbnail clipped to card face
+                    thumb = self.thumbnails[i]
+                    thumb_rect = thumb.get_rect()
+                    thumb_rect.topleft = (face.x, face.y)
+                    # Clip to face area
+                    clip = surface.get_clip()
+                    surface.set_clip(face)
+                    surface.blit(thumb, thumb_rect)
+                    surface.set_clip(clip)
 
-                # Title (word-wrapped, to the right of play icon)
-                text_cx = face.x + (face.width + 70) // 2
-                text_max_w = face.width - 90
-                draw_wrapped_text(surface, title, self.title_font, text_color,
-                                  text_cx, face.centery, text_max_w)
+                    # Dark gradient overlay at bottom for text
+                    grad_h = 50
+                    grad = pygame.Surface((face.width, grad_h), pygame.SRCALPHA)
+                    for y in range(grad_h):
+                        alpha = int(180 * (y / grad_h))
+                        pygame.draw.line(grad, (0, 0, 0, alpha),
+                                        (0, y), (face.width, y))
+                    surface.blit(grad, (face.x, face.bottom - grad_h))
+
+                    # Title at bottom of thumbnail
+                    label = self.title_font.render(title, True, WHITE)
+                    label_rect = label.get_rect(
+                        midbottom=(face.centerx, face.bottom - 6))
+                    surface.blit(label, label_rect)
+                else:
+                    # Fallback: colored card with text
+                    face = draw_3d_card(surface, rect, bg_color, 16, pressed)
+                    text_color = BLACK if sum(bg_color) > 400 else WHITE
+                    draw_wrapped_text(surface, title, self.title_font, text_color,
+                                      face.centerx, face.centery, face.width - 20)
 
             # Scroll indicator
             if self.max_scroll > 0:

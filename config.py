@@ -54,15 +54,36 @@ SHOWS_DATA = [
 ]
 
 
-# Curated YouTube videos: (title, youtube_video_id, bg_color)
+# Curated YouTube videos: (title, youtube_video_id, bg_color, thumbnail_file)
 # To add a video: go to youtube.com, find the video, copy the ID from the URL
 # e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ → ID is "dQw4w9WgXcQ"
+# Thumbnail: save a .jpg to assets/videos/ (any size, gets scaled to fit card)
+# Videos launch via Roku YouTube app (channel 837)
 VIDEOS_DATA = [
-    # Add your curated videos here! Examples:
-    # ("Baby Shark",      "XqZsoesa55w", (255, 200, 50)),
-    # ("Wheels on the Bus","e_04ZrNroTo", (80, 180, 255)),
-    # ("Old MacDonald",   "5oYGFnFKkBE", (100, 200, 80)),
+    ("Disco Fruit Party!",          "b65MoVwANq4", (255, 100, 180), "disco_fruit.jpg"),
+    ("Fruit Salad Dance Party",     "wzGRs-C8kqs", (100, 200, 80),  "fruit_salad.jpg"),
+    ("Dua Lipa - Houdini",         "suAR1PYFNYA", (180, 80, 220),  "houdini.jpg"),
+    ("Uptown Funk - Bruno Mars",    "OPf0YbXqDm0", (220, 50, 50),   "uptown_funk.jpg"),
+    ("MJ - Smooth Criminal",        "h_D3VFfhvs4", (60, 60, 60),    "smooth_criminal.jpg"),
+    ("Daft Punk - Get Lucky",       "5NV6Rdv1a3I", (200, 170, 50),  "get_lucky.jpg"),
+    ("Daft Punk - Get Lucky (Full)","h5EofwRzit0", (50, 180, 200),  "get_lucky_full.jpg"),
+    ("Sabrina Carpenter - Espresso","eVli-tstM5E", (180, 120, 80),  "espresso.jpg"),
+    ("MJ - Beat It",                "oRdxUFDoQe0", (200, 30, 30),   "beat_it.jpg"),
+    ("MJ - Speed Demon",            "l039y9FaIjc", (80, 80, 180),   "speed_demon.jpg"),
+    ("MJ - Leave Me Alone",         "crbFmpezO4A", (50, 150, 100),  "leave_me_alone.jpg"),
+    ("MJ - Remember The Time",      "3LUQ_Vme2fo", (180, 140, 60),  "remember_the_time.jpg"),
+    ("Kylie - Come Into My World",   "TOoe3EsafFk", (200, 80, 150),  "come_into_my_world.jpg"),
+    ("Baa We're Lambs",             "PZKeBdYgD90", (100, 180, 100), "baa_lambs.jpg"),
+    ("Walking in the Rain",         "JwaiZNbps4M", (70, 100, 160),  "walking_rain.jpg"),
+    ("Beach Boys - Barbara Ann",    "4wvx14Qv9cg", (80, 180, 220),  "barbara_ann.jpg"),
+    ("ROSE & Bruno Mars - APT.",    "ekr2nIex040", (220, 60, 120),  "apt.jpg"),
 ]
+YOUTUBE_CHANNEL_ID = 837  # Roku YouTube app channel ID
+
+# Admin shutdown — hidden 5-tap zone on main menu reveals PIN keypad
+ADMIN_PIN = "0326"              # 4-digit PIN to confirm shutdown
+# "quit" = exit to desktop, "shutdown" = power off the Pi
+SHUTDOWN_ACTION = "quit"
 
 # Sound hooks — uncomment and set paths when audio hardware is connected
 # SOUNDS = {}
